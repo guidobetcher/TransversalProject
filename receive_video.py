@@ -2,7 +2,7 @@
 from vidgear.gears import NetGear
 import cv2
 import numpy as np
-
+#Comentario
 def findpoint(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDBLCLK:
         (B, G, R) = frame[y, x]
