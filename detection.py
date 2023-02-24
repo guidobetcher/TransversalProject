@@ -4,8 +4,18 @@ from dronekit import connect, VehicleMode
 from pymavlink import mavutil
 import time
 from vidgear.gears import NetGear
-options = {"flag": 0, "copy": False, "track": False} # Define Netgear server at given IP address and define parameters
-server = NetGear( address="10.10.10.240", port="5454", protocol="tcp", pattern=0, logging=True, **options )
+def set_video_server():
+    options = {"flag": 0, "copy": False, "track": False} # Define Netgear server at given IP address and define parameters
+    return NetGear( address="10.10.10.240", port="5454", protocol="tcp", pattern=0, logging=True, **options )
+
+def apply_therhold(image, upper_theshold, lower_theshold, kernel):
+    mask = cv2.inRange(hsv, lower, upper)  # returns a binary image
+    # clean the image
+    opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+    return closing
+
+server = set_video_server()
 # define a connection string and connect to the vehicle
 cs = '/dev/ttyS0'  # for Raspi UART
 #cs = "tcp:127.0.0.1:5763"  # for mission planner sitl
@@ -32,29 +42,24 @@ while True:
                 if ret:
                     #print('Capturing video...')
                     # change each frame to HSV
-                    server.send(frame)
                     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             
                     # define range of color in HSV
                     lower = np.array([95, 50, 20])
                     upper = np.array([120, 255, 255])
-            
-                    # apply a threshold
-                    mask = cv2.inRange(hsv, lower, upper)  # returns a binary image
-                    alt=vehicle.rangefinder.distance
-                    p = 1.12e-06  # camera pixel size in meters
-                    f = 3.04e-03  # camera focal length in meters
-                    GSD = alt * p / f
+
+                    altitude = vehicle.rangefinder.distance
+                    pixel_size = 1.12e-06  # camera pixel size in meters
+                    focal_length = 3.04e-03  # camera focal length in meters
+                    GSD = altitude * pixel_size / focal_length
                     kernel_size = int(0.02 / GSD) # kernel is 2cm at all altitudes
                     kernel = np.ones((kernel_size, kernel_size), np.uint8)
-                    # clean the image
-                    opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-                    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
-                    # find edges
-                    
-            
-                    #find the contours of the object
-                    contours, hierarchy = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    # apply a threshold
+                    filtered_image = apply_theshold(hsv, upper, lower, kernel)
+
+                    # find edge
+                    # find the contours of the object
+                    contours, hierarchy = cv2.findContours(filtered_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                     if len(contours) > 0:
                         # find the biggest contour and show it in blue
@@ -69,9 +74,9 @@ while True:
                         # compute the size in pixels of the target at certain altitude
                         altitude = vehicle.rangefinder.distance  # altitude
                         target_radius = 0.54  # target radius in meters
-                        p = 1.12e-06  # camera pixel size in meters
-                        f = 6.048e-04  # camera focal length in meters
-                        GSD = altitude * p / f
+                        pixel_size = 1.12e-06  # camera pixel size in meters
+                        focal_length = 6.048e-04  # camera focal length in meters
+                        GSD = altitude * pixel_size / focal_length
                         target_radius_pixel = target_radius / GSD
                         print('r target',target_radius_pixel)
                         # compare target radius size in pixels to the measured radius size from the contours
