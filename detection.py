@@ -4,18 +4,22 @@ from dronekit import connect, VehicleMode
 from pymavlink import mavutil
 import time
 from vidgear.gears import NetGear
-def set_video_server():
+def set_video_server(ip, port, protocol):
     options = {"flag": 0, "copy": False, "track": False} # Define Netgear server at given IP address and define parameters
-    return NetGear( address="10.10.10.240", port="5454", protocol="tcp", pattern=0, logging=True, **options )
+    return NetGear( address=ip, port=port, protocol=protocol, pattern=0, logging=True, **options )
 
-def apply_therhold(image, upper_theshold, lower_theshold, kernel):
+def set_camera_parameters(focal_length, pixel_size):
+    return  {'focal_length': focal_length, 'pixel_size': pixel_size}
+def apply_threshold(image, upper_theshold, lower_theshold, kernel):
     mask = cv2.inRange(hsv, lower, upper)  # returns a binary image
     # clean the image
     opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
     return closing
 
-server = set_video_server()
+server = set_video_server("10.10.10.240", "5454", "tcp")
+camera = set_camera_parameters(focal_length=3.04e-03, pixel_size=1.12e-06)
+
 # define a connection string and connect to the vehicle
 cs = '/dev/ttyS0'  # for Raspi UART
 #cs = "tcp:127.0.0.1:5763"  # for mission planner sitl
@@ -49,13 +53,11 @@ while True:
                     upper = np.array([120, 255, 255])
 
                     altitude = vehicle.rangefinder.distance
-                    pixel_size = 1.12e-06  # camera pixel size in meters
-                    focal_length = 3.04e-03  # camera focal length in meters
-                    GSD = altitude * pixel_size / focal_length
+                    GSD = altitude * camera['pixel_size'] / camera['focal_length']
                     kernel_size = int(0.02 / GSD) # kernel is 2cm at all altitudes
                     kernel = np.ones((kernel_size, kernel_size), np.uint8)
                     # apply a threshold
-                    filtered_image = apply_theshold(hsv, upper, lower, kernel)
+                    filtered_image = apply_threshold(hsv, upper, lower, kernel)
 
                     # find edge
                     # find the contours of the object
