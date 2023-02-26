@@ -34,7 +34,6 @@ img = cv2.imread('Captura de pantalla_2023-02-26_15-51-29.png')
 
 # Rotación
 rotation_angle = 15
-print(int(90/rotation_angle))
 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 for i in range(int(90/rotation_angle)):
     # img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
@@ -50,5 +49,5 @@ for i in range(int(90/rotation_angle)):
         cv2.waitKey(0)
         break
     else:
-        img = rotate_image(img, 25)
+        img = rotate_image(img, rotation_angle)
         print("no H detected")
