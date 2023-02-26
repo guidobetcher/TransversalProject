@@ -4,12 +4,17 @@ from dronekit import connect, VehicleMode
 from pymavlink import mavutil
 import time
 from vidgear.gears import NetGear
+
 def set_video_server(ip, port, protocol):
     options = {"flag": 0, "copy": False, "track": False} # Define Netgear server at given IP address and define parameters
     return NetGear( address=ip, port=port, protocol=protocol, pattern=0, logging=True, **options )
 
 def set_camera_parameters(focal_length, pixel_size):
     return  {'focal_length': focal_length, 'pixel_size': pixel_size}
+
+def set_landing_pad_properties(radius, upper_hsv_color, lower_hsv_color):
+    return {'radius': radius, 'hsv_color': {'upper': upper_hsv_color, 'lower': lower_hsv_color}}
+
 def apply_threshold(image, upper_theshold, lower_theshold, kernel):
     mask = cv2.inRange(hsv, lower, upper)  # returns a binary image
     # clean the image
@@ -19,6 +24,14 @@ def apply_threshold(image, upper_theshold, lower_theshold, kernel):
 
 server = set_video_server("10.10.10.240", "5454", "tcp")
 camera = set_camera_parameters(focal_length=3.04e-03, pixel_size=1.12e-06)
+'''
+ To set the landing pad's upper and lower HSV colors we recomend to take a picture with the camera you will
+use and with some tool take 10 color measurments of the landing pad and select the maximum and
+minimum values of all three dimensions (Hue, Saturation and Value)
+'''
+landing_pad = set_landing_pad_properties(radius=0.54,
+                                         upper_hsv_color=np.array([120, 255, 255]),
+                                         lower_hsv_color=np.array([95, 50, 20]))
 
 # define a connection string and connect to the vehicle
 cs = '/dev/ttyS0'  # for Raspi UART
@@ -47,17 +60,12 @@ while True:
                     #print('Capturing video...')
                     # change each frame to HSV
                     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            
-                    # define range of color in HSV
-                    lower = np.array([95, 50, 20])
-                    upper = np.array([120, 255, 255])
-
                     altitude = vehicle.rangefinder.distance
                     GSD = altitude * camera['pixel_size'] / camera['focal_length']
                     kernel_size = int(0.02 / GSD) # kernel is 2cm at all altitudes
                     kernel = np.ones((kernel_size, kernel_size), np.uint8)
                     # apply a threshold
-                    filtered_image = apply_threshold(hsv, upper, lower, kernel)
+                    filtered_image = apply_threshold(hsv, landing_pad['color']['upper'], landing_pad['color']['lower'], kernel)
 
                     # find edge
                     # find the contours of the object
@@ -70,20 +78,16 @@ while True:
                         center = (int(x_max), int(y_max))
                         radius_max = int(radius_max)
                         cv2.circle(frame, center, radius_max, (255, 0, 0), 2)
-                        server.send(frame)
                         print('r max', radius_max)
             
                         # compute the size in pixels of the target at certain altitude
                         altitude = vehicle.rangefinder.distance  # altitude
-                        target_radius = 0.54  # target radius in meters
-                        pixel_size = 1.12e-06  # camera pixel size in meters
-                        focal_length = 6.048e-04  # camera focal length in meters
-                        GSD = altitude * pixel_size / focal_length
-                        target_radius_pixel = target_radius / GSD
+                        target_radius_pixel = target_radius / (GSD/2) # we divide the GSD by 2 to adjuste the value. Maybe due to the calibration the calculled values didn't fit the measurments
                         print('r target',target_radius_pixel)
                         # compare target radius size in pixels to the measured radius size from the contours
                         measurements.pop(0)
                         if target_radius_pixel * 0.95 < radius_max < target_radius_pixel * 1.05:
+                            server.send(frame)
                             measurements.append(1)
                             if sum(measurements) >= 4:
                                 # set vehicle mode to loiter and stop detecting objects
