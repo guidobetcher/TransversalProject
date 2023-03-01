@@ -8,21 +8,11 @@ import tkinter as tk
 from tkinter.simpledialog import askstring 
 
 def on_message(client, userdata, message): 
-    if message.topic == 'picture': 
-        jpg_original = base64.b64decode(message.payload) 
-        jpg_as_np = np.frombuffer(jpg_original, dtype=np.uint8) 
-        image_buffer = cv.imdecode(jpg_as_np, flags=1) 
-        cv2image = cv.cvtColor(image_buffer, cv.COLOR_BGR2RGBA) 
-        img = Img.fromarray(cv2image) 
-        imgtk = ImageTk.PhotoImage(image=img) 
-        pictureLabel.imgtk = imgtk 
-        pictureLabel.configure(image=imgtk)
 
     if message.topic == 'heading':
         heading =str(message.payload.decode("utf-8"))
         headingLabel.heading = heading
         headingLabel.configure(text=heading)
-        print('heading: ', heading)
 
     if message.topic == 'Video':
         #Decoding the message
@@ -41,17 +31,11 @@ def on_message(client, userdata, message):
         fps = 'fps: ' + str(message.payload.decode("utf-8"))
         fpsLabel.heading = fps
         fpsLabel.configure(text=fps)
-        print('heading: ', fps)
 
     
 def getHeading():
     global client
     client.publish('getHeading')
-
-
-def takePicture():
-    global client
-    client.publish('takePicture')
 
 
 def startVideo():
@@ -75,12 +59,10 @@ headingLabel.grid ( row = 0, column = 1, padx = 5, pady = 5)
 
 cameraFrame = tk.LabelFrame (text = "Camera control") 
 cameraFrame.grid (row = 0, column = 1, padx = 5, pady = 5) 
-takePictureButton = tk.Button(cameraFrame, text="Take picture", bg='red', fg="white", command=takePicture) 
-takePictureButton.grid (row =0, column = 0, padx = 5, pady = 5) 
 startVideoButton = tk.Button(cameraFrame, text="Start Video", bg='red', fg="white", command=startVideo) 
-startVideoButton.grid (row =0, column = 1, padx = 5, pady = 5)
+startVideoButton.grid (row =0, column = 0, padx = 5, pady = 5)
 stopVideoButton = tk.Button(cameraFrame, text="Stop Video", bg='red', fg="white", command=stopVideo) 
-stopVideoButton.grid (row =0, column = 2, padx = 5, pady = 5)
+stopVideoButton.grid (row =0, column = 1, padx = 5, pady = 5)
 
 pictureLabel = tk.Label(cameraFrame, text='Picture will be shown here') 
 pictureLabel.grid(row=1, column=0, columnspan = 3)
@@ -95,7 +77,6 @@ client.on_message = on_message
 client.connect(broker_address, broker_port) 
 client.loop_start() 
 client.subscribe('heading') 
-client.subscribe('picture') 
 client.subscribe('Video')
 client.subscribe('fps')
 master.mainloop()

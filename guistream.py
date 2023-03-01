@@ -9,6 +9,13 @@ broker_address = 'localhost'
 broker_port = 1883
 
 
+def getHeading():
+    connection_string = "udpin:0.0.0.0:14551"
+    vehicle = connect(connection_string, wait_ready=True, baud=115200)
+    client.publish('heading', str(vehicle.heading))
+    vehicle.close()
+        
+
 def videoStream():
     global video
     cap = cv.VideoCapture(0)
@@ -35,19 +42,8 @@ def on_message(client, userdata, message):
 
     if message.topic == 'getHeading':
         print ('Get heading')
-        connection_string = "udpin:0.0.0.0:14551"
-        vehicle = connect(connection_string, wait_ready=True, baud=115200)
-        client.publish('heading', str(vehicle.heading))
-        vehicle.close()
-
-    if message.topic == 'takePicture':
-        print ('take picture') 
-        cap = cv.VideoCapture(0) 
-        ret, frame = cap.read() 
-        _, buffer = cv.imencode('.jpg', frame) 
-        # Converting into encoded bytes 
-        jpg_as_text = base64.b64encode(buffer) 
-        client.publish('picture', jpg_as_text)
+        w = threading.Thread(target=getHeading)
+        w.start()
 
     if message.topic == 'startVideo':
         print('Start video')
@@ -64,8 +60,7 @@ client = mqtt.Client('On board controller')
 client.on_message = on_message
 client.connect(broker_address, broker_port)
 print('waiting commands . . .')
-client.subscribe('getHeading')
-client.subscribe('takePicture') 
+client.subscribe('getHeading') 
 client.subscribe('startVideo')
 client.subscribe('stopVideo') 
 client.loop_forever()
