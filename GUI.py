@@ -24,7 +24,6 @@ def on_message(client, userdata, message):
         headingLabel.configure(text=heading)
         print('heading: ', heading)
 
-
     if message.topic == 'Video':
         #Decoding the message
         img = base64.b64decode(message.payload)
@@ -37,7 +36,6 @@ def on_message(client, userdata, message):
         imgtk = ImageTk.PhotoImage(image=img) 
         pictureLabel.imgtk = imgtk 
         pictureLabel.configure(image=imgtk)
-
 
     if message.topic == 'fps':
         fps = 'fps: ' + str(message.payload.decode("utf-8"))
