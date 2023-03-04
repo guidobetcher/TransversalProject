@@ -15,6 +15,23 @@ def set_camera_parameters(focal_length, pixel_size):
 def set_landing_pad_properties(radius, upper_hsv_color, lower_hsv_color):
     return {'radius': radius, 'hsv_color': {'upper': upper_hsv_color, 'lower': lower_hsv_color}}
 
+def get_scaled_kernel(altitude):
+    GSD = altitude * camera['pixel_size'] / camera['focal_length']
+    kernel_size = int(0.02 / GSD) # kernel is 2cm at all altitudes
+    return np.ones((kernel_size, kernel_size), np.uint8)
+
+def get_matching_color_objects_contours(frame):
+    # change each frame to HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    altitude = vehicle.rangefinder.distance
+    kernel = get_scaled_kernel(altitude)
+    # apply a threshold
+    filtered_image = apply_threshold(hsv, landing_pad['color']['upper'], landing_pad['color']['lower'], kernel)
+
+    # find edge
+    # find the contours of the object
+    return cv2.findContours(filtered_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
 def apply_threshold(image, upper_theshold, lower_theshold, kernel):
     mask = cv2.inRange(hsv, lower, upper)  # returns a binary image
     # clean the image
@@ -58,19 +75,7 @@ while True:
             
                 if ret:
                     #print('Capturing video...')
-                    # change each frame to HSV
-                    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-                    altitude = vehicle.rangefinder.distance
-                    GSD = altitude * camera['pixel_size'] / camera['focal_length']
-                    kernel_size = int(0.02 / GSD) # kernel is 2cm at all altitudes
-                    kernel = np.ones((kernel_size, kernel_size), np.uint8)
-                    # apply a threshold
-                    filtered_image = apply_threshold(hsv, landing_pad['color']['upper'], landing_pad['color']['lower'], kernel)
-
-                    # find edge
-                    # find the contours of the object
-                    contours, hierarchy = cv2.findContours(filtered_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+                    contours, hierarchy = get_matching_color_objects_contours(frame)
                     if len(contours) > 0:
                         # find the biggest contour and show it in blue
                         c = max(contours, key=cv2.contourArea)
