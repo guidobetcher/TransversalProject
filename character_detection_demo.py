@@ -33,7 +33,7 @@ img = cv2.imread('Captura de pantalla_2023-02-26_15-51-29.png')
 # tesseract can only read in RGB format
 
 # Rotación
-rotation_angle = 15
+rotation_angle = 30
 
 vid = cv2.VideoCapture(0)
 
@@ -50,7 +50,6 @@ while(True):
         # img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel,iterations=1)
         # img = 255 - img
         # For getting the text and number from image
-        ocr_config = r'-c tessedit_char_whitelist=H --psm 10'
         if char_finder(frame, "H"):
             print("H detected")
             # For displaying the original image
