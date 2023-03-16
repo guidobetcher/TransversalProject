@@ -3,7 +3,7 @@ import matplotlib.patches as mpp
 import matplotlib.lines as mpl
 import numpy as np
 from pymavlink import mavutil
-#from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal, Command
+from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal, Command
 
 # Represent a non-vertical line segment from start_pt to end_pt
 # as y = mx + b and minv <= x <= maxv. 
@@ -108,22 +108,33 @@ def closest_point(point, points):
     dist_2 = np.einsum('ij,ij->i', deltas, deltas)
     return np.argmin(dist_2)
 
-'''cs='tcp:127.0.0.1:5763'
+cs='tcp:127.0.0.1:5763'
 vehicle = connect(cs, wait_ready=True, baud=115200)   
 cmds=vehicle.commands
-cmds.clear()'''
+cmds.download()
+cmds.wait_ready()
 
-points = [[12, 1], [2, 10],[10, 0], [10, 4], [0, 8]]
-'''points = [[1.9884409, 41.2764156], 
+
+#points = [[12, 1], [2, 10],[10, 0], [10, 4], [0, 8]]
+points = [[1.9884409, 41.2764156], 
           [1.9886743, 41.2762453],
           [1.9888969, 41.2762775], 
           [1.9889881, 41.2763894], 
           [1.9887936, 41.2764650],
-          [1.9886152, 41.2764630]]'''
+          [1.9886152, 41.2764630]]
 points = sortPoints(points)
 print('points1', points)
-point = np.array([2, 10])
-while points[0,0] != point[0] and points[0,1] != point[1]:
+lon=vehicle.location.global_relative_frame.lon
+lat=vehicle.location.global_relative_frame.lat
+home = np.array([lon, lat])
+print(home)
+distance = []
+for point in points:
+    distance.append(get_distance(home, point))
+
+closest_point = points[distance.index(min(distance))]
+closest_point=np.array(closest_point)
+while points[0,0] != closest_point[0] and points[0,1] != closest_point[1]:
     points=np.roll(points,-1,axis=0)
 
 print('points', points)
@@ -162,31 +173,32 @@ print(line_pts)
 line_pts=np.array(line_pts, dtype=np.dtype(object))
 
 print('line points', line_pts)
-
+cmds.clear()
 wp = []
 a = False
 for i in line_pts:
     if a == True:
-        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-        #                          i[0,1],i[0,0],2))
-        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-        #                          i[1,1],i[1,0],2))
-        wp.append([i[0,1],i[0,0]])
-        wp.append([i[1,1],i[1,0]])
+        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+                                 i[0,1],i[0,0],2))
+        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+                                 i[1,1],i[1,0],2))
+        # wp.append([i[0,1],i[0,0]])
+        # wp.append([i[1,1],i[1,0]])
         a = False
     elif a ==False:
-        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-        #                          i[1,1],i[1,0],2))
-        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-        #                          i[0,1],i[0,0],2))
-        wp.append([i[1,1],i[1,0]])
-        wp.append([i[0,1],i[0,0]])
+        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+                                 i[1,1],i[1,0],2))
+        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+                                 i[0,1],i[0,0],2))
+        # wp.append([i[1,1],i[1,0]])
+        # wp.append([i[0,1],i[0,0]])
         a = True
-#cmds.upload()
+cmds.upload()
+vehicle.close()
 plt.close('all')
 
 fig, ax = plt.subplots(1, 1)
