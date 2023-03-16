@@ -3,7 +3,7 @@ import matplotlib.patches as mpp
 import matplotlib.lines as mpl
 import numpy as np
 from pymavlink import mavutil
-from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal, Command
+#from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal, Command
 
 # Represent a non-vertical line segment from start_pt to end_pt
 # as y = mx + b and minv <= x <= maxv. 
@@ -90,6 +90,24 @@ def sortPoints(points):
     indices = np.argsort(angles)
     return coords[indices]
 
+def get_distance(point1, point2):
+    """
+    Returns the ground distance in metres between two LocationGlobal objects.
+
+    This method is an approximation, and will not be accurate over large distances and close to the
+    earth's poles. It comes from the ArduPilot test code:
+    https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
+    """
+    dx = point2[0] - point1[0]
+    dy = point2[1] - point1[1]
+    return np.sqrt((dx*dx) + (dy*dy))
+
+def closest_point(point, points):
+    points = np.asarray(points)
+    deltas = points - point
+    dist_2 = np.einsum('ij,ij->i', deltas, deltas)
+    return np.argmin(dist_2)
+
 '''cs='tcp:127.0.0.1:5763'
 vehicle = connect(cs, wait_ready=True, baud=115200)   
 cmds=vehicle.commands
@@ -145,25 +163,30 @@ line_pts=np.array(line_pts, dtype=np.dtype(object))
 
 print('line points', line_pts)
 
-'''for i in line_pts:
-    a = False
+wp = []
+a = False
+for i in line_pts:
     if a == True:
-        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-                                 i[0,1],i[0,0],2))
-        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-                                 i[1,1],i[1,0],2))
+        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+        #                          i[0,1],i[0,0],2))
+        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+        #                          i[1,1],i[1,0],2))
+        wp.append([i[0,1],i[0,0]])
+        wp.append([i[1,1],i[1,0]])
         a = False
     elif a ==False:
-        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-                                 i[1,1],i[1,0],2))
-        cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                                 mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-                                 i[0,1],i[0,0],2))
+        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+        #                          i[1,1],i[1,0],2))
+        # cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+        #                          mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
+        #                          i[0,1],i[0,0],2))
+        wp.append([i[1,1],i[1,0]])
+        wp.append([i[0,1],i[0,0]])
         a = True
-cmds.upload()'''
+#cmds.upload()
 plt.close('all')
 
 fig, ax = plt.subplots(1, 1)
@@ -181,4 +204,17 @@ ax.set_ylim(0, 12)
 '''ax.set_xlim(1.988, 1.989)
 ax.set_ylim(41.276, 41.277)'''
 
+print('wp', wp)
 plt.show()
+
+# waypoints = []
+# waypoints.append([closest_seg.x, closest_seg.y])
+# waypoints.append([closest_seg.x2, closest_seg.y2])
+# line_pts = line_pts[::-1]
+# for line_pt in line_pts:
+#     wp_options = points
+#     wp_options = np.append(wp_options, line_pt)
+#     next_wp = closest_point(waypoints[-1], wp_options)
+#     print(wp_options)
+#     print(waypoints[-1])
+#     break
