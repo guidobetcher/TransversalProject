@@ -107,7 +107,11 @@ def videoStream():
         start = time.time()
         # Read Frame
         _, frame = cap.read()
-       
+        _, buffer1 = cv.imencode('.jpg', frame)
+        # Converting into encoded bytes
+        jpg_as_text1 = base64.b64encode(buffer1)
+        # Publishig the Frame on the Topic home/server
+        client.publish('Video1', jpg_as_text1)
         altitude = vehicle.rangefinder.distance
         GSD = get_GSD(altitude)
         target_radius_pixel = int(landing_pad["radius"] / (GSD)) # we divide the GSD by 2 to adjuste the value. Maybe due to the calibration the calculled values didn't fit the measurments
@@ -115,8 +119,14 @@ def videoStream():
         print(altitude)
         
         fframe = apply_threshold(frame, landing_pad["hsv_color"]["upper"], landing_pad["hsv_color"]["lower"], get_scaled_kernel(altitude))
+        _, buffer2 = cv.imencode('.jpg', fframe)
+        # Converting into encoded bytes
+        jpg_as_text2 = base64.b64encode(buffer2)
+        # Publishig the Frame on the Topic home/server
+        client.publish('Video2', jpg_as_text2)
         interest_region = fframe[target_radius_pixel:len(fframe)-target_radius_pixel][target_radius_pixel:len(fframe[0])-target_radius_pixel]
         contours, hierarchy = get_matching_color_objects_contours(fframe)
+        fframe2 = fframe
         if len(contours) > 0:
             # find the biggest contour and show it in blue
             c = max(contours, key=cv.contourArea)
@@ -172,14 +182,14 @@ def videoStream():
                         print("no H detected")
                         client.publish('detection','no H detected')
         if len(roi_fframe)>0:
-            fframe =roi_fframe
+            fframe2 =roi_fframe
         else:
             pass
-        _, buffer = cv.imencode('.jpg', fframe)
+        _, buffer3 = cv.imencode('.jpg', fframe2)
         # Converting into encoded bytes
-        jpg_as_text = base64.b64encode(buffer)
+        jpg_as_text3 = base64.b64encode(buffer3)
         # Publishig the Frame on the Topic home/server
-        client.publish('Video', jpg_as_text)
+        client.publish('Video3', jpg_as_text3)
         end = time.time()
         t = end - start
         fps = int(1/t)
