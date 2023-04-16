@@ -1,6 +1,7 @@
 import folium as fl
 from streamlit_folium import st_folium
 import streamlit as st
+import os
 
 def get_pos(lat,lng):
     return lat,lng
@@ -11,10 +12,14 @@ m = fl.Map()
 m.add_child(fl.LatLngPopup())
 
 map = st_folium(m, height=350, width=700)
-
 data = get_pos(map['last_clicked']['lat'],map['last_clicked']['lng'])
 
 if data is not None:
     f = open("mission_region.txt", "a")
     f.write(str(data) + ",\n")
     f.close()
+
+if st.button('Close'):
+    exit()
+else:
+    st.write('Select at least one point')
