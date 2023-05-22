@@ -6,8 +6,9 @@ import os
 import tkinter as tk
 import subprocess
 from pymavlink import mavutil
-#from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal, Command
+from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal, Command
 from tkinter import ttk
+import math
 # Represent a non-vertical line segment from start_pt to end_pt
 # as y = mx + b and minv <= x <= maxv.
 # For vertical lines x = b, m = None and minv <= y <= maxv
@@ -156,6 +157,7 @@ def getClosestPoint(points, home):
 
 def getWaypoints(edge_points, grid_spacing, home):
     points = sortPoints(edge_points)
+    print('points',points)
     closest_point = getClosestPoint(points, home)
     while points[0,0] != closest_point[0] and points[0,1] != closest_point[1]:
         points=np.roll(points,-1,axis=0)
@@ -163,12 +165,16 @@ def getWaypoints(edge_points, grid_spacing, home):
     closest_seg = linesegs[0]
     m = closest_seg.m
     b = closest_seg.b
-
     intercept_ranges = [lineseg.intercept_range(m) for lineseg in linesegs]
-
     max_intercept = np.max(intercept_ranges)
     min_intercept = np.min(intercept_ranges)
+    print('mim int',min_intercept)
+    print('max int',max_intercept)
+    print('spacing in meters',grid_spacing)
+    grid_spacing=grid_spacing/6378137.0*180/math.pi
+    grid_spacing = grid_spacing/math.cos(math.atan(m))
     intercepts = np.arange(min_intercept + grid_spacing, max_intercept, grid_spacing)
+    print('spacing',grid_spacing)
     line_pts = []
     for intercept in intercepts:
         linesegs = linesegs[::-1]
@@ -178,20 +184,20 @@ def getWaypoints(edge_points, grid_spacing, home):
     waypoints = np.array(line_pts, dtype=np.dtype(object))
     return waypoints
 
-def sendFlightPlan(cmds, waypoints, altitude, speed):
+def sendFlightPlan(cmds, waypoints, altitude, speed, vehicle):
     cmds.clear()
     wp = []
     a = False
     for waypoint in waypoints:
         cmds.add(Command(0,0,0,mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
                                  mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,0,0,0,0,0,0,
-                                 waypoint[0],waypoint[1],2))
+                                 waypoint[1],waypoint[0],altitude))
     cmds.upload()
     vehicle.close()
     plt.close('all')
 
     fig, ax = plt.subplots(1, 1)
-
+    
     polygon = mpp.Polygon(waypoints, closed = True, fill = False)
 
     ax.add_artist(polygon)
@@ -220,10 +226,11 @@ def submitFlightParams():
     lat=vehicle.location.global_relative_frame.lat
     home = np.array([lon, lat])
     # Hay que corregir el spacing. Tiene que ser la distancia a desplazar en el eje de las y
-    grid_spacing = flight_altitude*np.tan(fov["horizontal"]/2)*(2-ovelapping)
+    grid_spacing = altitude*np.tan(fov["horizontal"]/2)*(2-overlapping)
     waypoints = getWaypoints(edge_points, grid_spacing, home)
     speed = getSpeed()
-    sendFlightPlan(cmds, waypoints, altitude, speed)
+    print(waypoints)
+    sendFlightPlan(cmds, waypoints, altitude, speed, vehicle)
 
 root = tk.Tk()
 # Crear caja de texto.
